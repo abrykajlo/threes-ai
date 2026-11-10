@@ -1,4 +1,5 @@
 from enum import Enum
+import numpy as np
 
 class Action(Enum):
     UP = 0
@@ -8,33 +9,70 @@ class Action(Enum):
 
 class Game:
     def __init__(self):
-        self.state = State((
-            (1,2,0,0),
-            (0,0,0,0),
-            (0,0,0,0),
-            (0,0,0,0),
-        ), 0)
+        self.state = State(np.array(
+            [[0, 3, 0, 2],
+             [3, 0, 1, 1],
+             [0, 2, 3, 0],
+             [1, 1, 0, 0],
+            ],
+            dtype=int,
+        ), 1)
     
     def move(self, action: Action):
-        print(action)
+        if action == Action.UP and self._can_move_up():
+            self._move_up()
+            return
+        
+        elif action == Action.DOWN and self._can_move_down():
+            self._move_down()
+            return
+
+        elif action == Action.LEFT and self._can_move_left():
+            self._move_left()
+            return
+
+        elif action == Action.RIGHT and self._can_move_right():
+            self._move_right()
+            return
+
+        print("Can't move in that direction.")
+
+    def _move_up(self):
+        pass
+
+    def _move_left(self):
+        pass
+    
+    def _move_down(self):
+        pass
+
+    def _move_right(self):
+        pass
+
+    def _can_move_up(self):
+        pass
+
+    def _can_move_left(self):
+        pass
+
+    def _can_move_down(self):
+        pass
+
+    def _can_move_right(self):
+        pass
     
     def done(self):
-        return False
+        return not self._can_move_up and not self._can_move_right and not self._can_move_left and not self._can_move_down
 
 class State:
-    Row = tuple[int, int, int, int]
-    
-    def __init__(self, board: tuple[Row, Row, Row, Row], next: int):
+    def __init__(self, board: np.ndarray[(4, 4), int], next: int):
         self.board = board
         self.next = next
     
     def __str__(self):
         return f"""Next: {self.next}
 Board:
-{self.board[0]}
-{self.board[1]}
-{self.board[2]}
-{self.board[3]}"""
+{self.board}"""
 
 def main():
     game = Game()
