@@ -20,10 +20,32 @@ class Game:
     
     def move(self, action: Action):
         move_mask = self._move_mask(action)
+        same_mask = np.logical_not(move_mask) # which elements should remain the same
 
         if not np.any(move_mask):
             print("Can't move in that direction.")
             return
+
+        match action:
+            case Action.UP:
+                opposite = Action.DOWN
+            case Action.DOWN:
+                opposite = Action.UP
+            case Action.LEFT:
+                opposite = Action.RIGHT
+            case Action.RIGHT:
+                opposite = Action.LEFT
+
+        same_move_mask = Game._shift(move_mask, opposite) # which elements just move and dont combine
+        
+        shifted = Game._shift(self.state.board, action)
+
+        new_board = np.zeros_like(self.state.board)
+        new_board[same_mask] = self.state.board[same_mask]
+        new_board[move_mask] = (self.state.board + shifted)[move_mask]
+        new_board[same_move_mask] = shifted[same_move_mask]
+
+        self.state.board = new_board
 
     def done(self):
         zeros = self.state.board == 0
@@ -39,6 +61,24 @@ class Game:
 
     def _move_mask(self, action):
         board = self.state.board
+        shifted = Game._shift(board, action)
+
+        moves_into_zero = (board == 0) & (shifted > 0)
+        combine_to_three = (board != 0) & (shifted != 0) & ((board + shifted) == 3)
+        doubles = (board >= 3) & (shifted == board)
+
+        move_mask = moves_into_zero | combine_to_three | doubles
+
+        reverse = action == Action.DOWN or action == Action.RIGHT
+        axis = 0 if action == Action.UP or action == Action.DOWN else 1
+
+        move_mask = np.flip(move_mask, axis=axis) if reverse else move_mask
+        move_mask = np.logical_or.accumulate(move_mask, axis=axis)
+        move_mask = np.flip(move_mask, axis=axis) if reverse else move_mask
+        
+        return move_mask
+
+    def _shift(board, action):
         shifted = np.zeros_like(board)
         if action == Action.UP:
             shifted[:-1, :] = board[1:, :]
@@ -49,12 +89,7 @@ class Game:
         elif action == Action.RIGHT:
             shifted[:, 1:] = board[:, :-1]
 
-        moves_into_zero = (board == 0) & (shifted > 0)
-        combine_to_three = (board != 0) & (shifted != 0) & ((board + shifted) == 3)
-        doubles = (board >= 3) & (shifted == board)
-
-        return moves_into_zero | combine_to_three | doubles
-    
+        return shifted
 
 class State:
     def __init__(self, board: np.ndarray[(4, 4), int], next: int):
