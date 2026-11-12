@@ -19,50 +19,42 @@ class Game:
         ), 1)
     
     def move(self, action: Action):
-        if action == Action.UP and self._can_move_up():
-            self._move_up()
-            return
-        
-        elif action == Action.DOWN and self._can_move_down():
-            self._move_down()
+        move_mask = self._move_mask(action)
+
+        if not np.any(move_mask):
+            print("Can't move in that direction.")
             return
 
-        elif action == Action.LEFT and self._can_move_left():
-            self._move_left()
-            return
-
-        elif action == Action.RIGHT and self._can_move_right():
-            self._move_right()
-            return
-
-        print("Can't move in that direction.")
-
-    def _move_up(self):
-        pass
-
-    def _move_left(self):
-        pass
-    
-    def _move_down(self):
-        pass
-
-    def _move_right(self):
-        pass
-
-    def _can_move_up(self):
-        pass
-
-    def _can_move_left(self):
-        pass
-
-    def _can_move_down(self):
-        pass
-
-    def _can_move_right(self):
-        pass
-    
     def done(self):
-        return not self._can_move_up and not self._can_move_right and not self._can_move_left and not self._can_move_down
+        zeros = self.state.board == 0
+        if np.any(zeros):
+            return False
+
+        for action in enumerate(Action):
+            move_mask = self._move_mask(action)
+            if np.any(move_mask):
+                return False
+        
+        return True
+
+    def _move_mask(self, action):
+        board = self.state.board
+        shifted = np.zeros_like(board)
+        if action == Action.UP:
+            shifted[:-1, :] = board[1:, :]
+        elif action == Action.DOWN:
+            shifted[1:, :] = board[:-1, :]
+        elif action == Action.LEFT:
+            shifted[:, :-1] = board[:, 1:]
+        elif action == Action.RIGHT:
+            shifted[:, 1:] = board[:, :-1]
+
+        moves_into_zero = (board == 0) & (shifted > 0)
+        combine_to_three = (board != 0) & (shifted != 0) & ((board + shifted) == 3)
+        doubles = (board >= 3) & (shifted == board)
+
+        return moves_into_zero | combine_to_three | doubles
+    
 
 class State:
     def __init__(self, board: np.ndarray[(4, 4), int], next: int):
