@@ -47,6 +47,9 @@ class Game:
 
         self.state.board = new_board
 
+        self._place_next(move_mask, action)
+        self._new_next()
+
     def done(self):
         zeros = self.state.board == 0
         if np.any(zeros):
@@ -58,6 +61,27 @@ class Game:
                 return False
         
         return True
+
+    def _place_next(self, move_mask, action):
+        next = self.state.next
+
+        # get a boolean mask with an edge of True corresponding to where
+        # numbers may appear
+        edge_mask = np.ones_like(move_mask)
+        edge_mask = Game._shift(edge_mask, action)
+        edge_mask = np.logical_not(edge_mask)
+        edge_mask = edge_mask & move_mask # if move_mask has a column or row of False exclude it
+
+        coords = np.where(edge_mask)
+
+        # pick the index in coords
+        picked_coord = np.random.randint(0, coords[0].shape[0])
+
+        self.state.board[coords[0][picked_coord], coords[1][picked_coord]] = next
+
+
+    def _new_next(self):
+        pass
 
     def _move_mask(self, action):
         board = self.state.board
@@ -124,6 +148,7 @@ def main():
             print("Incorrect input.")
 
     print("GAME OVER")
+    print(game.state)
 
 if __name__ == "__main__":
     main()
