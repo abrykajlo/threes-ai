@@ -4,9 +4,9 @@ import random
 
 class Action(Enum):
     UP = 0
-    LEFT = 1
-    RIGHT = 2
-    DOWN = 3
+    DOWN = 1
+    LEFT = 2
+    RIGHT = 3
 
 class Game:
     def __init__(self):
