@@ -10,6 +10,7 @@ class Action(Enum):
 
 class Game:
     def __init__(self):
+        self.bonus_cards = []
         self.state = State(np.zeros((4, 4), dtype=int), 0)
         # insert 9 ints from deck
         self._shuffle_deck()
@@ -50,6 +51,7 @@ class Game:
 
         self.state.board = new_board
 
+        self._update_bonus_cards()
         self._place_next(move_mask, action)
         self._new_next()
 
@@ -66,7 +68,7 @@ class Game:
         return True
 
     def _place_next(self, move_mask, action):
-        next = self.state.next
+        next = self._pick_next()
 
         # get a boolean mask with an edge of True corresponding to where
         # numbers may appear
@@ -82,11 +84,36 @@ class Game:
 
         self.state.board[coords[0][picked_coord], coords[1][picked_coord]] = next
 
+    def _pick_next(self):
+        if type(self.state.next) is int:
+            return self.state.next
+        
+        next_idx = np.random.randint(0, len(self.state.next))
+        return self.state.next[next_idx]
 
     def _new_next(self):
+        if len(self.bonus_cards) > 0:
+            if np.random.randint(0, 21) == 20:
+                if len(self.bonus_cards) <= 3:
+                    self.state.next = self.bonus_cards
+                else:
+                    random.shuffle(self.bonus_cards)
+                    self.state.next = self.bonus_cards[:3]
+                self.state.next.sort()
+                return
+
         if len(self.deck) == 0:
             self._shuffle_deck()
         self.state.next = self.deck.pop()
+
+    def _update_bonus_cards(self):
+        max_card = np.max(self.state.board)
+        if max_card < 48:
+            return
+        
+        max_card_8 = max_card // 8
+        if max_card_8 not in self.bonus_cards:
+            self.bonus_cards.append(max_card_8)
 
     def _move_mask(self, action):
         board = self.state.board
