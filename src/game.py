@@ -1,5 +1,6 @@
 from enum import Enum
 import numpy as np
+import random
 
 class Action(Enum):
     UP = 0
@@ -9,15 +10,17 @@ class Action(Enum):
 
 class Game:
     def __init__(self):
-        self.state = State(np.array(
-            [[0, 3, 0, 2],
-             [3, 0, 1, 1],
-             [0, 2, 3, 0],
-             [1, 1, 0, 0],
-            ],
-            dtype=int,
-        ), 1)
-    
+        self.state = State(np.zeros((4, 4), dtype=int), 0)
+        # insert 9 ints from deck
+        self._shuffle_deck()
+        for _ in range(0, 9):
+            empty_spaces = self.state.board == 0
+            coords = np.where(empty_spaces)
+            coord_idx = np.random.randint(0, coords[0].shape[0])
+            self.state.board[coords[0][coord_idx], coords[1][coord_idx]] = self.deck.pop()
+        
+        self.state.next = self.deck.pop()
+
     def move(self, action: Action):
         move_mask = self._move_mask(action)
         same_mask = np.logical_not(move_mask) # which elements should remain the same
@@ -81,7 +84,9 @@ class Game:
 
 
     def _new_next(self):
-        pass
+        if len(self.deck) == 0:
+            self._shuffle_deck()
+        self.state.next = self.deck.pop()
 
     def _move_mask(self, action):
         board = self.state.board
@@ -114,6 +119,10 @@ class Game:
             shifted[:, 1:] = board[:, :-1]
 
         return shifted
+    
+    def _shuffle_deck(self):
+        self.deck = [1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3]
+        random.shuffle(self.deck)
 
 class State:
     def __init__(self, board: np.ndarray[(4, 4), int], next: int):
