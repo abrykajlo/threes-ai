@@ -13,8 +13,10 @@ def main():
     parser.add_argument("--buffer_size", type=int, default=10000)
     parser.add_argument("--episodes", type=int, default=100)
     parser.add_argument("--epsilon", type=float, default=0.5)
+    parser.add_argument("--batch_size", type=int, default=32)
 
     args = parser.parse_args()
+    batch_size = args.batch_size
     buffer_size = args.buffer_size
     episodes = args.episodes
     epsilon = args.epsilon
@@ -27,28 +29,24 @@ def main():
     for episode in range(0, episodes):
         while not game.done():
             score = game.state.score()
-            phi_state = phi(game.state)
             if np.random.random() < epsilon:
                 action = Action(np.random.randint(0, len(Action)))
             else:
-                action = Action(model())
+                action = Action(model(game.state.board, game.state.next))
             
             game.move(action)
             next_score = game.state.score()
             reward = next_score - score
 
             # store experience
-            replay_buffer.record(phi_state, action, reward)
+            replay_buffer.record(game.state, action, reward)
 
             # sample minibatch from replay buffer
-            batch = replay_buffer.sample()
+            batch = replay_buffer.sample(batch_size)
 
             # set y
         replay_buffer.finish(game.state)
         game = Game() # reset
-
-def phi():
-    pass
 
 class ExperienceReplayBuffer:
     def __init__(self, buffer_size):
