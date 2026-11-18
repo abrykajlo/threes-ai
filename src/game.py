@@ -166,7 +166,7 @@ Board:
         score_board[score_board == 1] = 0
         score_board[score_board == 2] = 0
         score_board //= 3
-        score_board = np.log2(score_board)
+        score_board[score_board != 0] = np.log2(score_board[score_board != 0])
         score_board = np.power(3, 1 + score_board)
         
         return np.sum(score_board)
