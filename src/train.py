@@ -10,30 +10,42 @@ from game import Game, Action
 
 def main():
     parser = ArgumentParser()
+    parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--buffer_size", type=int, default=10000)
+    parser.add_argument("--discount_factor", type=float, default=0.5)
     parser.add_argument("--episodes", type=int, default=100)
     parser.add_argument("--epsilon", type=float, default=0.5)
-    parser.add_argument("--batch_size", type=int, default=32)
+    parser.add_argument("--target_update_freq", type=int, default=20)
 
     args = parser.parse_args()
     batch_size = args.batch_size
     buffer_size = args.buffer_size
     episodes = args.episodes
     epsilon = args.epsilon
+    target_update_freq = args.target_update_freq
 
-
-    model = ThreesModel()
+    # initialize replay memory
     replay_buffer = ExperienceReplayBuffer(buffer_size)
-    game = Game()
+    
+    # initialize Q function
+    Q = ThreesModel()
+
+    # initialize target Q function
+    Q_target = ThreesModel()
+    Q_target.load_state_dict(Q.state_dict())
+
+    optimizer = optim.Adam(Q.parameters())
 
     for episode in range(0, episodes):
+        game = Game()
         while not game.done():
-            score = game.state.score()
+            # select action
             if np.random.random() < epsilon:
                 action = Action(np.random.randint(0, len(Action)))
             else:
-                action = Action(model(game.state.board, game.state.next))
+                action = Action(Q(game.state.board, game.state.next))
             
+            score = game.state.score()
             game.move(action)
             next_score = game.state.score()
             reward = next_score - score
@@ -42,11 +54,10 @@ def main():
             replay_buffer.record(game.state, action, reward)
 
             # sample minibatch from replay buffer
-            batch = replay_buffer.sample(batch_size)
+            states, actions, rewards, next_states, dones = replay_buffer.sample(batch_size)
 
             # set y
         replay_buffer.finish(game.state)
-        game = Game() # reset
 
 class ExperienceReplayBuffer:
     def __init__(self, buffer_size):
@@ -70,6 +81,9 @@ class ExperienceReplayBuffer:
         if self.curr_exp < self.buffer_size:
             self.board_state[self.curr_exp] = state.board
             self.curr_exp += 1
+    
+    def sample(self, batch_size):
+        batch_size = min(batch_size, self.curr_exp)
 
 if __name__ == "__main__":
     main()
