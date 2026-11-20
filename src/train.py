@@ -20,6 +20,7 @@ def main():
     args = parser.parse_args()
     batch_size = args.batch_size
     buffer_size = args.buffer_size
+    discount_factor = args.discount_factor
     episodes = args.episodes
     epsilon = args.epsilon
     target_update_freq = args.target_update_freq
@@ -36,7 +37,8 @@ def main():
 
     optimizer = optim.Adam(Q.parameters())
 
-    for episode in range(0, episodes):
+    experiences = 0
+    for _ in range(0, episodes):
         game = Game()
         while not game.done():
             # select action
@@ -45,45 +47,75 @@ def main():
             else:
                 action = Action(Q(game.state.board, game.state.next))
             
-            score = game.state.score()
+            state = game.state
+            score = state.score()
+
             game.move(action)
-            next_score = game.state.score()
+            
+            next_state = game.state
+            next_score = next_state.score()
             reward = next_score - score
 
+            if game.done():
+                next_state = None
+
             # store experience
-            replay_buffer.record(game.state, action, reward)
+            replay_buffer[experiences] = (state, action, reward, next_state)
+            experiences += 1
 
             # sample minibatch from replay buffer
-            states, actions, rewards, next_states, dones = replay_buffer.sample(batch_size)
+            indices = np.arange(experiences)
+            np.random.shuffle(indices)
+            indices = indices[:experiences] if experiences < batch_size else indices[:batch_size]
+            states, actions, rewards, next_states, dones = replay_buffer[indices]
 
             # set y
-        replay_buffer.finish(game.state)
+            not_dones = not dones
+            y = np.zeros_like(dones, dtype=float)
+            y[not_dones] = rewards[not_dones] + discount_factor * Q_target()
+            y[dones] = rewards[dones]
 
 class ExperienceReplayBuffer:
     def __init__(self, buffer_size):
-        self.board_state = np.zeros((buffer_size, 4, 4), dtype=int)
-        self.next_state = np.zeros((buffer_size, 3), dtype=int)
-        self.action = np.zeros(buffer_size, dtype=int)
-        self.reward = np.zeros(buffer_size, dtype=float)
-        self.done = np.zeros(buffer_size, dtype=bool)
-        self.curr_exp = 0
-        self.buffer_size = buffer_size
+        self.states = StateBuffer(buffer_size)
+        self.actions = np.zeros(buffer_size, dtype=int)
+        self.rewards = np.zeros(buffer_size, dtype=float)
+        self.dones = np.zeros(buffer_size, dtype=bool)
     
-    def record(self, state, action, reward):
-        if self.curr_exp < self.buffer_size:
-            self.board_state[self.curr_exp] = state.board
-            self.next_state[self.curr_exp] = state.next
-            self.action[self.curr_exp] = action
-            self.reward[self.curr_exp] = reward
-            self.curr_exp += 1
+    def __getitem__(self, indices):
+        return self.states[indices], self.actions[indices], self.rewards[indices], self.states[indices + 1], self.dones[indices]
 
-    def finish(self, state):
-        if self.curr_exp < self.buffer_size:
-            self.board_state[self.curr_exp] = state.board
-            self.curr_exp += 1
-    
-    def sample(self, batch_size):
-        batch_size = min(batch_size, self.curr_exp)
+    def __setitem__(self, index, tuple):
+        state = tuple[0]
+        action = tuple[1]
+        reward = tuple[2]
+        next_state = tuple[3]
+
+        # state
+        self.states[index] = state
+        self.actions[index] = action
+        self.rewards[index] = reward
+
+        # next state
+        if next_state:
+            self.states[index + 1] = next_state
+            self.dones[index] = False
+        else:
+            self.dones[index] = True
+
+    def __len__(self):
+        return self.dones.shape[0]
+
+class StateBuffer:
+    def __init__(self, buffer_size):
+        self.board = np.zeros((buffer_size, 4, 4), dtype=int)
+        self.next = np.zeros((buffer_size, 3), dtype=int)
+
+    def __setitem__(self, index, state):
+        pass
+
+    def __getitem__(self, indices):
+        pass
 
 if __name__ == "__main__":
     main()
